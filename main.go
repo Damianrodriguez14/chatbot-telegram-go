@@ -38,6 +38,13 @@ func obtenerRespuesta(chatID int64, mensaje string) string {
 		Content: mensaje,
 	})
 
+	if len(historiales[chatID]) > 12 {
+		historiales[chatID] = append(
+			historiales[chatID][:1],
+			historiales[chatID][len(historiales[chatID])-10:]...,
+		)
+	}
+
 	resp, err := clienteGroq.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
@@ -84,7 +91,25 @@ func main() {
 		return c.Send("👋 ¡Hola! Soy el asistente virtual de *Ropa Style*.\n\nPuedo ayudarte con:\n• Precios y productos\n• Talles disponibles\n• Información de envíos\n• Medios de pago\n\n¿En qué te puedo ayudar hoy?", &tele.SendOptions{ParseMode: tele.ModeMarkdown})
 	})
 
+	bot.Handle("/ayuda", func(c tele.Context) error {
+		return c.Send("🤖 *Comandos disponibles:*\n\n/start → Iniciar conversación\n/ayuda → Ver esta lista\n/reset → Reiniciar conversación\n\nO simplemente escribime tu consulta y te respondo.", &tele.SendOptions{ParseMode: tele.ModeMarkdown})
+	})
+
+	bot.Handle("/reset", func(c tele.Context) error {
+		delete(historiales, c.Chat().ID)
+		return c.Send("🔄 Conversación reiniciada. ¿En qué te puedo ayudar?")
+	})
+
+	bot.Handle(tele.OnPhoto, func(c tele.Context) error {
+		return c.Send("📝 Por el momento solo proceso texto. Escribime tu consulta y te ayudo.")
+	})
+
+	bot.Handle(tele.OnDocument, func(c tele.Context) error {
+		return c.Send("📝 Por el momento solo proceso texto. Escribime tu consulta y te ayudo.")
+	})
+
 	bot.Handle(tele.OnText, func(c tele.Context) error {
+		bot.Notify(c.Chat(), tele.Typing)
 		mensaje := c.Text()
 		chatID := c.Chat().ID
 		respuesta := obtenerRespuesta(chatID, mensaje)
